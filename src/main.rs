@@ -1,4 +1,6 @@
-use serde::de::value;
+use serde::de::{value, IntoDeserializer};
+
+use regex::Regex;
 use std::{collections::HashMap, iter::Map};
 use std::{fs, result};
 use yaml_rust::{YamlEmitter, YamlLoader};
@@ -24,9 +26,7 @@ enum AS3_data {
 #[derive(Debug)]
 enum AS3_validator {
     Object(HashMap<String, AS3_validator>),
-    // String {
-    //     regex: String,
-    // },
+    String { regex: Option<String> },
     // Map {
     //     KeyType: Box<AS3_data>,
     //     ValueType: Box<AS3_data>,
@@ -53,7 +53,7 @@ impl AS3_validator {
                         validator_value.validate(
                             data_inner
                                 .get(validator_key)
-                                .expect(&format!("Key {validator_key} is not in {data_inner:?}")),
+                                .expect(&format!("Key {validator_key} is not in {data_inner:#?}")),
                         )
                     })
             }
@@ -62,6 +62,13 @@ impl AS3_validator {
                     return true;
                 };
                 number >= &minimum
+            }
+            (AS3_validator::String { regex }, AS3_data::String(String)) => {
+                let Some(regex) = regex else {
+                    return true;
+                };
+                let re = Regex::new(regex).unwrap();
+                re.is_match(String)
             }
             _ => false,
         }
@@ -99,6 +106,13 @@ fn main() {
         (
             "children".to_owned(),
             AS3_validator::Integer { minimum: Some(2) },
+        ),
+        (
+            "name".to_owned(),
+            AS3_validator::String {
+                // The name should start with an Uppercase letter
+                regex: Some("^[A-Z][a-z]".to_owned()),
+            },
         ),
     ]));
 
