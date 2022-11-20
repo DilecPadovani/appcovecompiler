@@ -1,0 +1,43 @@
+# Define:
+#   +Type: Object,
+#   Version: String,
+#   Requirements:
+#     +Type: Map,
+#     +KeyType: String,
+#     +ValueType:
+#       +Type: String,
+#       +None: True,
+#       +Regex: (auto|(==|>=|<=)[a-zA-Z0-9_.-]+)
+
+# Lambda_FunctionMap:
+#   +Type: Map
+#   +KeyType: String
+#   +ValueType: *Lambda_Function
+
+'+Type': 'Map',
+  '+KeyType': 'String',
+  '+ValueType': {
+    '+Type': 'Object',
+    'Domain': 'String',
+    'Aliases': {
+      '+Type': 'List',
+      '+ValueType': 'String',
+      '+Default': [],
+    },
+    'Routes': {
+      '+Type': 'Map',
+      '+KeyType': 'String',
+      '+ValueType': 'String',
+      '+Default': {},
+    },
+    'Proxies': {
+      '+Type': 'Map',
+      '+KeyType': 'String',
+      '+ValueType': 'String',
+      '+Default': {},
+    },
+  }
+
+{
+  "hello" : { "Domain" : "www" , Aliases: ["al", "bar"], Routes : { "main" : "index", "profile" : "about"},  Proxies : { "1" : "california", "2" : "texas"}  }
+}
