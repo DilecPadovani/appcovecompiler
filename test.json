@@ -2,5 +2,10 @@
   "age": 25,
   "children": 5,
   "name": "Dilec",
-  "vehicles": ["Bugatti", "Ferrari", "Tesla"]
+  "vehicles": {
+    "list": [
+      { "name": "model3", "maker": "Tesla", "year": 2018 },
+      { "name": "Raptor", "maker": "Ford", "year": 104 }
+    ]
+  }
 }
