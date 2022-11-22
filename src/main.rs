@@ -21,15 +21,15 @@ enum AS3Validator {
     Object(HashMap<String, AS3Validator>),
     String { regex: Option<String> },
     Integer { minimum: Option<i64> },
-    Decimal { minimum: Option<i64> },
+    Decimal { minimum: Option<f64> },
     List(Box<AS3Validator>),
 }
 
 impl AS3Validator {
-    fn validate(&self, data: &AS3Data) -> Result<bool, AS3ValidationError> {
+    fn validate(&self, data: &AS3Data) -> Result<(), AS3ValidationError> {
         match (self, data) {
             (AS3Validator::Object(validator_inner), AS3Data::Object(data_inner)) => {
-                let res: Vec<Result<bool, AS3ValidationError>> = validator_inner
+                let res: Vec<Result<(), AS3ValidationError>> = validator_inner
                     .into_iter()
                     .map(|(validator_key, validator_value)| {
                         if let Some(value_from_key) = data_inner.get(validator_key) {
@@ -44,21 +44,41 @@ impl AS3Validator {
 
                 match res
                     .into_iter()
-                    .collect::<Result<Vec<bool>, AS3ValidationError>>()
+                    .collect::<Result<Vec<()>, AS3ValidationError>>()
                 {
-                    Ok(ins) => Ok(ins.iter().all(|e| *e)),
+                    Ok(_) => Ok(()),
                     Err(e) => Err(e),
                 }
             }
             (AS3Validator::Integer { minimum }, AS3Data::Integer(number)) => {
                 let Some(minimum) = minimum else {
-                    return Ok(true);
+                    return Ok(());
                 };
-                Ok(number >= &minimum)
+                if minimum > number {
+                    Err(AS3ValidationError::Minimum {
+                        number: *number as f64,
+                        minimum: *minimum as f64,
+                    })
+                } else {
+                    Ok(())
+                }
+            }
+            (AS3Validator::Decimal { minimum }, AS3Data::Decimal(number)) => {
+                let Some(minimum) = minimum else {
+                    return Ok(());
+                };
+                if minimum > number {
+                    Err(AS3ValidationError::Minimum {
+                        number: *number as f64,
+                        minimum: *minimum as f64,
+                    })
+                } else {
+                    Ok(())
+                }
             }
             (AS3Validator::String { regex }, AS3Data::String(string)) => {
                 let Some(regex) = regex else {
-                    return Ok(true);
+                    return Ok(());
                 };
                 let re = Regex::new(regex).unwrap();
 
@@ -69,7 +89,7 @@ impl AS3Validator {
                         regex: regex.to_owned(),
                     });
                 }
-                Ok(true)
+                Ok(())
             }
             (AS3Validator::List(items_type), AS3Data::List(items)) => {
                 // Ok(items.iter().all(|item| items_type.validate(item)))
@@ -77,13 +97,13 @@ impl AS3Validator {
                 let res = items
                     .iter()
                     .map(|item| items_type.validate(item))
-                    .collect::<Vec<Result<bool, AS3ValidationError>>>();
+                    .collect::<Vec<Result<(), AS3ValidationError>>>();
 
                 match res
                     .into_iter()
-                    .collect::<Result<Vec<bool>, AS3ValidationError>>()
+                    .collect::<Result<Vec<()>, AS3ValidationError>>()
                 {
-                    Ok(ins) => Ok(ins.iter().all(|e| *e)),
+                    Ok(_) => Ok(()),
                     Err(e) => Err(e),
                 }
             }
@@ -137,6 +157,9 @@ enum AS3ValidationError {
     },
     #[error("Word {} is not following the `{}` regex " , .word, .regex )]
     RegexError { word: String, regex: String },
+
+    #[error(" `{}` is under the minumum of `{}` . " , .number , .minimum)]
+    Minimum { number: f64, minimum: f64 },
 }
 
 fn main() {
@@ -185,12 +208,8 @@ fn main() {
     // println!("Validator : {:?}", validator);
     println!(
         "Validator_result : {}",
-        if let Ok(res) = validator.validate(&as3_data) {
-            if res {
-                "OK!"
-            } else {
-                "NO!"
-            }
+        if let Ok(_) = validator.validate(&as3_data) {
+            "OK!!"
         } else {
             "Err"
         }
@@ -250,7 +269,7 @@ mod tests {
             ),
         ]));
 
-        assert_eq!(validator.validate(&AS3Data::from(&json)), Ok(true));
+        assert_eq!(validator.validate(&AS3Data::from(&json)), Ok(()));
     }
 
     #[test]
@@ -420,5 +439,52 @@ mod tests {
                 regex: "^[A-Z][a-z]".to_string()
             })
         )
+    }
+
+    #[test]
+    fn with_minimum_error() {
+        let json = json!({
+          "age": 18,
+          "children": 5,
+        });
+
+        let validator = AS3Validator::Object(HashMap::from([
+            (
+                "age".to_owned(),
+                AS3Validator::Integer { minimum: Some(20) },
+            ),
+            (
+                "children".to_owned(),
+                AS3Validator::Integer { minimum: Some(2) },
+            ),
+        ]));
+
+        assert_eq!(
+            validator.validate(&AS3Data::from(&json)),
+            Err(AS3ValidationError::Minimum {
+                number: 18.0,
+                minimum: 20.0
+            })
+        );
+
+        let json = json!({
+          "age": 20,
+          "children": 0,
+        });
+
+        assert_eq!(
+            validator.validate(&AS3Data::from(&json)),
+            Err(AS3ValidationError::Minimum {
+                number: 0.0,
+                minimum: 2.0
+            })
+        );
+
+        let json = json!({
+          "age": 20,
+          "children": 20,
+        });
+
+        assert_eq!(validator.validate(&AS3Data::from(&json)), Ok(()))
     }
 }
