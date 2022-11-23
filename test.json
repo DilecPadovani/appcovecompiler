@@ -1,44 +1,11 @@
 {
-  "+Object": {
-    "name": {
-      "+String": {
-        "regex": "^[A-Z][a-z]"
-      }
-    },
-    "children": {
-      "+Inetger": {
-        "minimum": 2
-      }
-    },
-    "vehicles": {
-      "+Object": {
-        "list": {
-          "+list": {
-            "+Object": {
-              "name": {
-                "+String": {
-                  "regex": null
-                }
-              },
-              "maker": {
-                "+String": {
-                  "regex": "^[A-Z][a-z]"
-                }
-              },
-              "year": {
-                "+Inetger": {
-                  "minimum": null
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "age": {
-      "+Inetger": {
-        "minimum": 20
-      }
-    }
+  "vehicles": {
+    "name": "raptor",
+    "year": 2018
+  },
+  "Truks": {
+    "name": "hummer",
+    "maker": "ford",
+    "year": 2019
   }
 }

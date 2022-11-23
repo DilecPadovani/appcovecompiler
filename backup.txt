@@ -129,7 +129,9 @@ impl AS3Validator {
         // serde_yaml::to_string(&serialized_yaml).unwrap()
     }
 
-
+    pub fn add(&self, children: AS3Validator) -> AS3Validator {
+        unimplemented!()
+    }
 }
 
 impl From<&serde_json::Value> for AS3Data {
@@ -158,59 +160,104 @@ impl From<&serde_json::Value> for AS3Data {
     }
 }
 
+// impl From<&serde_yaml::Value> for AS3Validator {
+//     fn from(yaml_config: &serde_yaml::Value) -> AS3Validator {
+
+//         let serde_yaml::Value::Mapping(inner) = yaml_config else {
+//             println!("Definition must start with a Yaml Mapping");
+//             return AS3Validator::Object(HashMap::new());
+
+//         } ;
+//         if !inner.contains_key("Root") {
+//             println!("Missing root word from definition");
+//             return AS3Validator::Object(HashMap::new());
+//         };
+//         println!("{inner:#?}");
+//         println!("root : {:#?}" , inner.get("Root").unwrap());
+//         for (key, value) in inner.iter(){
+//             println!("\n{key:#?} >> {value:#?}");
+//         }
+//         // match json {
+//         //     serde_json::Value::Object(inner) => AS3Data::Object(
+//         //         inner
+//         //             .iter()
+//         //             .map(|(key, value)| (key.clone(), Box::new(value.into())))
+//         //             .collect(),
+//         //     ),
+//         //     serde_json::Value::Array(inner) => {
+//         //         AS3Data::List(inner.clone().iter().map(|e| e.into()).collect())
+//         //     }
+//         //     serde_json::Value::String(inner) => AS3Data::String(inner.clone()),
+//         //     serde_json::Value::Number(inner) => {
+//         //         if let Some(number) = inner.as_i64() {
+//         //             AS3Data::Integer(number)
+//         //         } else {
+//         //             AS3Data::Decimal(inner.as_f64().unwrap())
+//         //         }
+//         //     }
+//         //     serde_json::Value::Bool(inner) => AS3Data::Boolean(*inner),
+//         //     serde_json::Value::Null => panic!(),
+//         // }
+
+//         unimplemented!()
+//     }
+// }
 
 impl AS3Validator {
-    pub fn from(yaml_config: &serde_yaml::Value) -> Result<AS3Validator, String> {
+    pub fn from(yaml_config: &serde_yaml::Value) -> Result<AS3Validator, ()> {
         let serde_yaml::Value::Mapping(inner) = yaml_config else {
             println!("Definition must start with a Yaml Mapping");
-            return Err("Definition must start with a Yaml Mapping".to_string());
+            return Err(());
            
         } ;
-        let root_word: String = "Root".to_string();
-        if !inner.contains_key(&root_word) {
-
-            return Err("Missing root word from definition".to_string());
+        if !inner.contains_key("Root") {
+            println!("Missing root word from definition");
+            return Err(());
         };
+        // println!("iterrrrrrr {inner:#?}");
+        // println!("root : {:#?}" , inner.get("Root").unwrap());
 
-        AS3Validator::build_from_yaml( &inner.get(root_word).unwrap())
+        let mut validator = AS3Validator::Object(HashMap::new());
 
-        
+        for x in inner.get("Root").iter() {
+            AS3Validator::build_from_yaml(&mut validator, x);
+            // println!(" io io ___ {x:#?}");
+        }
 
-
+        unimplemented!()
     }
 
     fn build_from_yaml(
-        // validator: &mut AS3Validator,
+        validator: &mut AS3Validator,
         yaml_config: &&serde_yaml::Value,
-    ) -> Result<AS3Validator, String> {
+    ) -> Result<AS3Validator, ()> {
+        // println!("{yaml_config:#?}");
         let Some(serde_yaml::Value::String(validator_type)) = yaml_config.get("+Type") else {
-            return Err("Non ce il +type".to_string());
+            return Err(());
         };
 
-        let validator = match (validator_type.as_str(), yaml_config) {
-            ("Object", serde_yaml::Value::Mapping(inner)) => {
-                // println!("quiii {inner:#?}");
-                
-                let x : HashMap<String, AS3Validator>= inner.into_iter()           
-                    .filter(|(key, _)| key != &&serde_yaml::Value::String("+Type".to_string()))
-                    .map(|(key, value)| {
-                        (
-                            key.as_str().unwrap().to_string(),
-                            AS3Validator::build_from_yaml( &value).unwrap(),
-                        )
-                    }).collect();
-                    AS3Validator::Object(x)
-            },
-            ("String", serde_yaml::Value::Mapping(inner)) => {
-                
-                    AS3Validator::String{ regex : None}
-            }
+        let mut inner_validator = match validator_type.as_str() {
+            "Object" => AS3Validator::Object(HashMap::new()),
+            // unsuported Type
+            _ => return Err(()),
+        };
 
-            ("Integer", serde_yaml::Value::Mapping(inner)) => {
-                
-                AS3Validator::Integer { minimum: None }
-        }
-            _ => return Err("unsupported type".to_string()),
+        let validator = match (&mut inner_validator, yaml_config) {
+            (AS3Validator::Object(body), serde_yaml::Value::Mapping(inner)) => {
+                // println!("qui {inner:#?}");
+
+                inner
+                    .iter()
+                    .filter(|(key, _)| key != &&serde_yaml::Value::String("+type".to_string()))
+                    .for_each(|(key, value)| {
+                        body.insert(
+                            key.as_str().unwrap().to_string(),
+                            AS3Validator::build_from_yaml(validator, &value).unwrap(),
+                        );
+                    });
+                    inner_validator
+            }
+            _ => return Err(()),
         };
 
         Ok(validator)
@@ -238,7 +285,10 @@ enum AS3ValidationError {
 }
 
 fn main() {
+    // let data = fs::read_to_string("test.json").expect("Unable to read file");
 
+    // let json: serde_json::Value =
+    //     serde_json::from_str(&data).expect("JSON does not have correct format.");
 
     let validator = AS3Validator::Object(HashMap::from([
         (
@@ -274,30 +324,22 @@ fn main() {
         ),
     ]));
 
-    let data = fs::read_to_string("test.json").expect("Unable to read file");
-    let data_to_validate: serde_json::Value =
-        serde_json::from_str(&data).expect("JSON does not have correct format.");
-
-    let validator_schema = fs::read_to_string("validator_schema.yml").expect("Unable to read file");
-    let schema_yaml: serde_yaml::Value = serde_yaml::from_str(&validator_schema).unwrap();
-    if let Ok(validator) = AS3Validator::from(&schema_yaml) {
-        println!("{:?}", validator.validate(&AS3Data::from(&data_to_validate)) )
-    }
-
-
-
     // MAIN
+    // println!("{}", validator.to_yaml_string());
     // let as3_data = AS3Data::from(&json);
-    // println!("AS3 : {:#?}", AS3Data::from(&json));
-    // println!("Validator : {:?}", validator);
+
+    // // println!("AS3 : {:#?}", AS3Data::from(&json));
+    // // println!("Validator : {:?}", validator);
+
     // validator.validate(&as3_data).unwrap();
 
     // VALIDATOR FROM FILE
-    // let data = fs::read_to_string("test.json").expect("Unable to read file");
-    // let json: serde_json::Value =
-    //     serde_json::from_str(&data).expect("JSON does not have correct format.");
-
-
+    let input_validator = fs::read_to_string("validator_input.yml").expect("Unable to read file");
+    let yaml: serde_yaml::Value = serde_yaml::from_str(&input_validator).unwrap();
+    let x = AS3Validator::from(&yaml);
+    // println!("\n\n{:#?}", yaml);
+    // let validat: AS3Validator =
+    //     serde_yaml::from_str(&serde_yaml::to_string(&input_validator).unwrap()).unwrap();
 }
 
 #[cfg(test)]

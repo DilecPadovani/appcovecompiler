@@ -1,0 +1,18 @@
+Root:
+  +Type: Object
+  vehicles:
+    +Type: Object
+    name:
+      +Type: String
+    maker:
+      +Type: String
+    year:
+      +Type: Integer
+  Truks:
+    +Type: Object
+    name:
+      +Type: String
+    maker:
+      +Type: String
+    year:
+      +Type: Integer
