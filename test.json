@@ -1,11 +1,44 @@
 {
-  "age": 18,
-  "children": 5,
-  "name": "Dilec",
-  "vehicles": {
-    "list": [
-      { "name": "model3", "maker": "Tesla", "year": 2018 },
-      { "name": "Raptor", "maker": "Ford", "year": 104 }
-    ]
+  "+Object": {
+    "name": {
+      "+String": {
+        "regex": "^[A-Z][a-z]"
+      }
+    },
+    "children": {
+      "+Inetger": {
+        "minimum": 2
+      }
+    },
+    "vehicles": {
+      "+Object": {
+        "list": {
+          "+list": {
+            "+Object": {
+              "name": {
+                "+String": {
+                  "regex": null
+                }
+              },
+              "maker": {
+                "+String": {
+                  "regex": "^[A-Z][a-z]"
+                }
+              },
+              "year": {
+                "+Inetger": {
+                  "minimum": null
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "age": {
+      "+Inetger": {
+        "minimum": 20
+      }
+    }
   }
 }

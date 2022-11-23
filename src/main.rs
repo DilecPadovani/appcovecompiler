@@ -1,8 +1,9 @@
 use regex::Regex;
-use std::{collections::HashMap, fs, ops::Deref};
+use serde::{Deserialize, Serialize};
+use std::{collections::HashMap, fs};
 
 use thiserror::Error;
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 enum AS3Data {
     Object(HashMap<String, Box<AS3Data>>),
     String(String),
@@ -16,12 +17,17 @@ enum AS3Data {
     List(Vec<AS3Data>),
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 enum AS3Validator {
+    #[serde(rename(serialize = "+Object"))]
     Object(HashMap<String, AS3Validator>),
+    #[serde(rename(serialize = "+String"))]
     String { regex: Option<String> },
+    #[serde(rename(serialize = "+Inetger"))]
     Integer { minimum: Option<i64> },
+    #[serde(rename(serialize = "+Decimal"))]
     Decimal { minimum: Option<f64> },
+    #[serde(rename(serialize = "+list"))]
     List(Box<AS3Validator>),
 }
 
@@ -114,6 +120,14 @@ impl AS3Validator {
             }),
         }
     }
+
+    fn to_yaml_string(self) -> String {
+        let serialized_json = serde_json::to_string(&self).unwrap();
+        let serialized_yaml: serde_yaml::Value =
+            serde_yaml::from_str::<serde_yaml::Value>(&serialized_json).unwrap();
+        serde_yaml::to_string(&serialized_yaml).unwrap()
+        // serde_yaml::to_string(&serialized_yaml).unwrap()
+    }
 }
 
 impl From<&serde_json::Value> for AS3Data {
@@ -163,10 +177,10 @@ enum AS3ValidationError {
 }
 
 fn main() {
-    let data = fs::read_to_string("test.json").expect("Unable to read file");
+    // let data = fs::read_to_string("test.json").expect("Unable to read file");
 
-    let json: serde_json::Value =
-        serde_json::from_str(&data).expect("JSON does not have correct format.");
+    // let json: serde_json::Value =
+    //     serde_json::from_str(&data).expect("JSON does not have correct format.");
 
     let validator = AS3Validator::Object(HashMap::from([
         (
@@ -202,18 +216,25 @@ fn main() {
         ),
     ]));
 
-    let as3_data = AS3Data::from(&json);
+    println!("{}", validator.to_yaml_string());
+    // let as3_data = AS3Data::from(&json);
 
-    println!("AS3 : {:#?}", AS3Data::from(&json));
-    // println!("Validator : {:?}", validator);
-    println!(
-        "Validator_result : {}",
-        if let Ok(_) = validator.validate(&as3_data) {
-            "OK!!"
-        } else {
-            "Err"
-        }
-    );
+    // // println!("AS3 : {:#?}", AS3Data::from(&json));
+    // // println!("Validator : {:?}", validator);
+
+    // validator.validate(&as3_data).unwrap();
+
+    // let data = fs::read_to_string("validator_input.yml").expect("Unable to read file");
+
+    // let validator_schema: serde_yaml::Value =
+    //     serde_yaml::from_str(&data).expect("JSON does not have correct format.");
+
+    // println!("{}", serde_yaml::to_string(&validator_schema).unwrap());
+
+    // let yaml: serde_yaml::Value = serde_json::from::<AS3Validator>(&validator);
+
+    // let json: serde_json::Value =
+    //     serde_json::from_str(&data).expect("JSON does not have correct format.");
 }
 
 #[cfg(test)]
